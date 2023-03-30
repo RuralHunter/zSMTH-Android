@@ -36,6 +36,10 @@ import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.work.Data;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
+import androidx.work.WorkRequest;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
@@ -56,10 +60,11 @@ import com.zfdang.zsmth_android.models.MailListContent;
 import com.zfdang.zsmth_android.models.Topic;
 import com.zfdang.zsmth_android.newsmth.AjaxResponse;
 import com.zfdang.zsmth_android.newsmth.SMTHHelper;
-import com.zfdang.zsmth_android.services.AlarmBroadcastReceiver;
+import com.zfdang.zsmth_android.services.MaintainUserStatusWorker;
 import com.zfdang.zsmth_android.services.UserStatusReceiver;
 
 import java.lang.reflect.Field;
+import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -128,11 +133,12 @@ public class MainActivity extends SMTHBaseActivity
     mUsername.setOnClickListener(this);
 
     // http://stackoverflow.com/questions/27097126/marquee-title-in-toolbar-actionbar-in-android-with-lollipop-sdk
-    TextView titleTextView = null;
+    TextView titleTextView;
     try {
       Field f = toolbar.getClass().getDeclaredField("mTitleTextView");
       f.setAccessible(true);
       titleTextView = (TextView) f.get(toolbar);
+      assert titleTextView != null;
       titleTextView.setEllipsize(TextUtils.TruncateAt.START);
     } catch (NoSuchFieldException e) {
     } catch (IllegalAccessException e) {
@@ -175,7 +181,15 @@ public class MainActivity extends SMTHBaseActivity
     setupUserStatusReceiver();
 
     // schedule the periodical background service
-    AlarmBroadcastReceiver.schedule(getApplicationContext(), mReceiver);
+    Data.Builder inputData = new Data.Builder();
+    inputData.putBoolean(MaintainUserStatusWorker.REPEAT, true);
+    WorkRequest userStatusWorkRequest =
+            new OneTimeWorkRequest.Builder(MaintainUserStatusWorker.class)
+                    .setInitialDelay(SMTHApplication.INTERVAL_TO_CHECK_MESSAGE, TimeUnit.MINUTES)
+                    .setInputData(inputData.build())
+                    .build();
+    WorkManager.getInstance(getApplicationContext()).enqueue(userStatusWorkRequest);
+
     // run the background service now
     updateUserStatusNow();
     UpdateNavigationViewHeader();
@@ -258,7 +272,10 @@ public class MainActivity extends SMTHBaseActivity
 
   // triger the background service right now
   private void updateUserStatusNow() {
-    AlarmBroadcastReceiver.runJobNow(getApplicationContext(), mReceiver);
+    // run worker immediately for once
+    WorkRequest userStatusWorkRequest =
+            new OneTimeWorkRequest.Builder(MaintainUserStatusWorker.class).build();
+    WorkManager.getInstance(getApplicationContext()).enqueue(userStatusWorkRequest);
   }
 
   private void setupUserStatusReceiver() {
@@ -278,6 +295,7 @@ public class MainActivity extends SMTHBaseActivity
         }
       }
     });
+    SMTHApplication.mUserStatusReceiver = mReceiver;
   }
 
   private void showNotification(String text) {
@@ -315,7 +333,7 @@ public class MainActivity extends SMTHBaseActivity
       Notification notification = mBuilder.build();
       mNotifyMgr.notify(notificationID, notification);
     } catch (Exception se) {
-      Log.e(TAG, "showNotification: " + se.toString());
+      Log.e(TAG, "showNotification: " + se);
     }
   }
 
@@ -348,6 +366,7 @@ public class MainActivity extends SMTHBaseActivity
 
   @Override protected void onNewIntent(Intent intent) {
     // this method will be triggered by showNotification(message);
+    super.onNewIntent(intent);
     FragmentManager fm = getSupportFragmentManager();
     Bundle bundle = intent.getExtras();
     if (bundle != null) {
@@ -357,22 +376,27 @@ public class MainActivity extends SMTHBaseActivity
       // java.lang.IllegalStateException: Can not perform this action after onSaveInstanceState
       String message = bundle.getString(SMTHApplication.SERVICE_NOTIFICATION_MESSAGE);
       if (message != null) {
-        // find the actual folder for the new message
-        if (message.contains(SMTHApplication.NOTIFICATION_NEW_MAIL)) {
-          mailListFragment.setCurrentFolder(MailListFragment.INBOX_LABEL);
-        } else if (message.contains(SMTHApplication.NOTIFICATION_NEW_LIKE)) {
-          mailListFragment.setCurrentFolder(MailListFragment.LIKE_LABEL);
-        } else if (message.contains(SMTHApplication.NOTIFICATION_NEW_AT)) {
-          mailListFragment.setCurrentFolder(MailListFragment.AT_LABEL);
-        } else if (message.contains(SMTHApplication.NOTIFICATION_NEW_REPLY)) {
-          mailListFragment.setCurrentFolder(MailListFragment.REPLY_LABEL);
-        }
-        // force mail fragment to reload
-        MailListContent.clear();
+        if (message.contains(SMTHApplication.NOTIFICATION_LOGIN_LOST)) {
+          // login status lost, show login menu
+          onLogin();
+        } else {
+          // find the actual folder for the new message
+          if (message.contains(SMTHApplication.NOTIFICATION_NEW_MAIL)) {
+            mailListFragment.setCurrentFolder(MailListFragment.INBOX_LABEL);
+          } else if (message.contains(SMTHApplication.NOTIFICATION_NEW_LIKE)) {
+            mailListFragment.setCurrentFolder(MailListFragment.LIKE_LABEL);
+          } else if (message.contains(SMTHApplication.NOTIFICATION_NEW_AT)) {
+            mailListFragment.setCurrentFolder(MailListFragment.AT_LABEL);
+          } else if (message.contains(SMTHApplication.NOTIFICATION_NEW_REPLY)) {
+            mailListFragment.setCurrentFolder(MailListFragment.REPLY_LABEL);
+          }
+          // force mail fragment to reload
+          MailListContent.clear();
 
-        fm.beginTransaction().replace(R.id.content_frame, mailListFragment).commitAllowingStateLoss();
-        // switch title of mainActivity
-        setTitle(SMTHApplication.App_Title_Prefix + "邮件");
+          fm.beginTransaction().replace(R.id.content_frame, mailListFragment).commitAllowingStateLoss();
+          // switch title of mainActivity
+          setTitle(SMTHApplication.App_Title_Prefix + "邮件");
+        }
       }
     }
   }
@@ -422,16 +446,18 @@ public class MainActivity extends SMTHBaseActivity
     getWindow().invalidatePanelMenu(Window.FEATURE_OPTIONS_PANEL);
 
     if (SMTHApplication.isValidUser()) {
-      // update user to login user
+      // update user to logined user
       mUsername.setText(SMTHApplication.activeUser.getId());
       String faceURL = SMTHApplication.activeUser.getFace_url();
       if (faceURL != null) {
         mAvatar.setImageFromStringURL(faceURL);
       }
+      SMTHApplication.displayedUserId = SMTHApplication.activeUser.getId();
     } else {
-      // only user to guest
+      // when user is invalid, set notice to login
       mUsername.setText(getString(R.string.nav_header_click_to_login));
       mAvatar.setImageResource(R.drawable.ic_person_black_48dp);
+      SMTHApplication.displayedUserId = "guest";
     }
   }
 
@@ -482,9 +508,6 @@ public class MainActivity extends SMTHBaseActivity
   }
 
   private void quitNow() {
-    // stop background service
-    AlarmBroadcastReceiver.unschedule();
-
     // quit
     finish();
     android.os.Process.killProcess(android.os.Process.myPid());
@@ -596,31 +619,29 @@ public class MainActivity extends SMTHBaseActivity
 
   public boolean onNavigationItemID(int menuID) {
     // Handle navigation view item clicks here.
-    int id = menuID;
-
     Fragment fragment = null;
     String title = "";
 
-    if (id == R.id.nav_guidance) {
+    if (menuID == R.id.nav_guidance) {
       fragment = hotTopicFragment;
       title = "首页导读";
-    } else if (id == R.id.nav_favorite) {
+    } else if (menuID == R.id.nav_favorite) {
       fragment = favoriteBoardFragment;
       title = "收藏夹";
-    } else if (id == R.id.nav_all_boards) {
+    } else if (menuID == R.id.nav_all_boards) {
       fragment = allBoardFragment;
       title = "所有版面";
-    } else if (id == R.id.nav_mail) {
+    } else if (menuID == R.id.nav_mail) {
       fragment = mailListFragment;
       title = "邮件";
-    } else if (id == R.id.nav_setting) {
+    } else if (menuID == R.id.nav_setting) {
       //            fragment = settingFragment;
       fragment = preferenceFragment;
       title = "设置";
-    } else if (id == R.id.nav_about) {
+    } else if (menuID == R.id.nav_about) {
       fragment = aboutFragment;
       title = "关于";
-    } else if(id == R.id.nav_night_mode) {
+    } else if(menuID == R.id.nav_night_mode) {
       boolean bNightMode = Settings.getInstance().isNightMode();
       Settings.getInstance().setNightMode(!bNightMode);
       setApplicationNightMode();
@@ -650,12 +671,10 @@ public class MainActivity extends SMTHBaseActivity
     }
 
     Activity activity = this;
-    if (activity != null) {
-      Intent intent = new Intent(activity.getApplicationContext(), MainActivity.class);
-      intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-      startActivity(intent);
-      activity.finish();
-    }
+    Intent intent = new Intent(activity.getApplicationContext(), MainActivity.class);
+    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+    startActivity(intent);
+    activity.finish();
   }
 
   public void testCodes() {

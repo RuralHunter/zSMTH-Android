@@ -12,6 +12,8 @@ import com.zfdang.zsmth_android.Settings;
 import com.zfdang.zsmth_android.helpers.GEODatabase;
 import com.zfdang.zsmth_android.newsmth.SMTHHelper;
 import com.zfdang.zsmth_android.newsmth.UserStatus;
+import com.zfdang.zsmth_android.services.UserStatusReceiver;
+
 import okhttp3.OkHttpClient;
 import androidx.multidex.MultiDex;
 
@@ -46,13 +48,13 @@ public class SMTHApplication extends Application {
   public static final String NOTIFICATION_NEW_AT = "你有新@!";
   public static final String NOTIFICATION_NEW_REPLY = "你有新回复!";
   public static final String NOTIFICATION_NEW_LIKE = "你有新Like!";
+  public static final String NOTIFICATION_LOGIN_LOST = "登录已过期！请重新登录...";
+
+  public static final int INTERVAL_TO_CHECK_MESSAGE = 2; // 2 minutes for interval to check messages
+  public static UserStatusReceiver mUserStatusReceiver = null;
 
   // IP database
   public static GEODatabase geoDB;
-
-  public static boolean isValidUser() {
-    return activeUser != null && !activeUser.getId().equals("guest");
-  }
 
   @Override
   protected void attachBaseContext(Context base) {
@@ -62,6 +64,11 @@ public class SMTHApplication extends Application {
 
   // current logined user
   public static UserStatus activeUser;
+  public static String displayedUserId = "guest";
+  public static boolean isValidUser() {
+    return activeUser != null && !activeUser.getId().equals("guest");
+  }
+
 
   public void onCreate() {
     super.onCreate();

@@ -1,5 +1,6 @@
 package com.zfdang.zsmth_android;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -40,12 +41,12 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.jude.swipbackhelper.SwipeBackHelper;
-import com.scwang.smartrefresh.layout.SmartRefreshLayout;
-import com.scwang.smartrefresh.layout.api.RefreshLayout;
-import com.scwang.smartrefresh.layout.footer.ClassicsFooter;
-import com.scwang.smartrefresh.layout.header.ClassicsHeader;
-import com.scwang.smartrefresh.layout.listener.OnLoadMoreListener;
-import com.scwang.smartrefresh.layout.listener.OnRefreshListener;
+import com.scwang.smart.refresh.footer.ClassicsFooter;
+import com.scwang.smart.refresh.header.ClassicsHeader;
+import com.scwang.smart.refresh.layout.SmartRefreshLayout;
+import com.scwang.smart.refresh.layout.api.RefreshLayout;
+import com.scwang.smart.refresh.layout.listener.OnLoadMoreListener;
+import com.scwang.smart.refresh.layout.listener.OnRefreshListener;
 import com.zfdang.SMTHApplication;
 import com.zfdang.zsmth_android.helpers.RecyclerViewUtil;
 import com.zfdang.zsmth_android.models.Attachment;
@@ -75,6 +76,8 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import okhttp3.ResponseBody;
+import pub.devrel.easypermissions.AfterPermissionGranted;
+import pub.devrel.easypermissions.EasyPermissions;
 
 /**
  * An activity representing a single Topic detail screen. This
@@ -97,22 +100,23 @@ public class PostListActivity extends SMTHBaseActivity
   private Topic mTopic = null;
 
   static {
-    ClassicsHeader.REFRESH_HEADER_PULLDOWN = "下拉可以刷新";
+    ClassicsHeader.REFRESH_HEADER_PULLING = "下拉可以刷新";
     ClassicsHeader.REFRESH_HEADER_REFRESHING = "正在刷新...";
     ClassicsHeader.REFRESH_HEADER_LOADING = "正在加载...";
     ClassicsHeader.REFRESH_HEADER_RELEASE = "释放立即刷新";
     ClassicsHeader.REFRESH_HEADER_FINISH = "刷新完成";
     ClassicsHeader.REFRESH_HEADER_FAILED = "刷新失败";
-    ClassicsHeader.REFRESH_HEADER_LASTTIME = "上次更新 M-d HH:mm";
+    ClassicsHeader.REFRESH_HEADER_UPDATE = "上次更新 M-d HH:mm";
 
-    ClassicsFooter.REFRESH_FOOTER_PULLUP = "上拉可以翻页";
+    ClassicsFooter.REFRESH_FOOTER_PULLING = "上拉可以翻页";
     ClassicsFooter.REFRESH_FOOTER_RELEASE = "释放立即翻页";
-    ClassicsFooter.REFRESH_FOOTER_REFRESHING = "正在刷新...";
     ClassicsFooter.REFRESH_FOOTER_LOADING = "正在加载下一页...";
-    ClassicsFooter.REFRESH_FOOTER_FINISH = "翻页完成";
-    ClassicsFooter.REFRESH_FOOTER_FAILED = "翻页失败";
-    ClassicsFooter.REFRESH_FOOTER_ALLLOADED = "全部加载完成";
+    ClassicsFooter.REFRESH_FOOTER_REFRESHING = "正在刷新...";
+    ClassicsFooter.REFRESH_FOOTER_FINISH = "";
+    ClassicsFooter.REFRESH_FOOTER_FAILED = "";
+    ClassicsFooter.REFRESH_FOOTER_NOTHING = "";
   }
+
 
   private SmartRefreshLayout mRefreshLayout;
   private String mFrom;
@@ -120,9 +124,23 @@ public class PostListActivity extends SMTHBaseActivity
   private GestureDetector mGestureDetector;
   private LinearLayoutManager linearLayoutManager;
 
+  // used for captureViewInternal
+  View capView1;
+  View capView2;
+  String capPostID;
+  private final static int RC_READ_WRITE_STORAGE = 1245;
+
   @Override protected void onDestroy() {
     super.onDestroy();
     SwipeBackHelper.onDestroy(this);
+  }
+
+  @Override
+  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+    // Forward results to EasyPermissions
+    EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this);
   }
 
   @Override protected void onPostCreate(Bundle savedInstanceState) {
@@ -249,7 +267,7 @@ public class PostListActivity extends SMTHBaseActivity
       mRefreshLayout.finishRefresh(100);
     }
     if (mRefreshLayout.isLoading()) {
-      mRefreshLayout.finishLoadmore(100);
+      mRefreshLayout.finishLoadMore(100);
     }
   }
 
@@ -644,45 +662,61 @@ public class PostListActivity extends SMTHBaseActivity
     }
   }
 
-  public void captureView(View v1, View v2, String postID){
-    //Create a Bitmap with the same dimensions
-    Bitmap image = Bitmap.createBitmap(v1.getWidth(), v1.getHeight() + v2.getHeight(), Bitmap.Config.RGB_565);
-    //Draw the view inside the Bitmap
-    Canvas canvas = new Canvas(image);
+  void captureView(View v1, View v2, String postID) {
+    capView1 = v1;
+    capView2 = v2;
+    capPostID = postID;
+    captureViewInternal();
+  }
 
-    if(Settings.getInstance().isNightMode()) {
-      canvas.drawColor(Color.BLACK);
-    } else {
-      canvas.drawColor(Color.WHITE);
-    }
-    v1.draw(canvas);
-    canvas.translate(0, v1.getHeight());
-    v2.draw(canvas);
-    canvas.save();
+  @AfterPermissionGranted(RC_READ_WRITE_STORAGE)
+  void captureViewInternal(){
+    String[] perms = {Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE};
+    if (EasyPermissions.hasPermissions(this, perms)) {
+      // Already have permission, do the thing
+      //Create a Bitmap with the same dimensions
+      Bitmap image = Bitmap.createBitmap(capView1.getWidth(), capView1.getHeight() + capView2.getHeight(), Bitmap.Config.RGB_565);
+      //Draw the view inside the Bitmap
+      Canvas canvas = new Canvas(image);
 
-    // save image to sdcard
-    try {
-      if (TextUtils.equals(Environment.getExternalStorageState(), Environment.MEDIA_MOUNTED)) {
-        String path = Environment.getExternalStorageDirectory().getPath() + "/zSMTH/";
-        File dir = new File(path);
-        if (!dir.exists()) {
-          dir.mkdirs();
-        }
-
-        String IMAGE_FILE_PREFIX = "post-";
-        String IMAGE_FILE_SUFFIX = ".jpg";
-        File outFile = new File(dir, IMAGE_FILE_PREFIX + postID + IMAGE_FILE_SUFFIX);
-        FileOutputStream out = new FileOutputStream(outFile);
-
-        image.compress(Bitmap.CompressFormat.JPEG, 90, out); //Output
-        Toast.makeText(PostListActivity.this, "截图已存为: /zSMTH/" + outFile.getName(), Toast.LENGTH_SHORT).show();
-
-        // make sure the new file can be recognized soon
-        sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(outFile)));
+      if(Settings.getInstance().isNightMode()) {
+        canvas.drawColor(Color.BLACK);
+      } else {
+        canvas.drawColor(Color.WHITE);
       }
-    } catch (Exception e) {
-      Log.e(TAG, "saveImageToFile: " + Log.getStackTraceString(e));
-      Toast.makeText(PostListActivity.this, "保存截图失败:\n请授予应用存储权限！\n" + e.toString(), Toast.LENGTH_LONG).show();
+      capView1.draw(canvas);
+      canvas.translate(0, capView1.getHeight());
+      capView2.draw(canvas);
+      canvas.save();
+
+      // save image to sdcard
+      try {
+        if (TextUtils.equals(Environment.getExternalStorageState(), Environment.MEDIA_MOUNTED)) {
+          String path = Environment.getExternalStorageDirectory().getPath() + "/zSMTH/";
+          File dir = new File(path);
+          if (!dir.exists()) {
+            dir.mkdirs();
+          }
+
+          String IMAGE_FILE_PREFIX = "post-";
+          String IMAGE_FILE_SUFFIX = ".jpg";
+          File outFile = new File(dir, IMAGE_FILE_PREFIX + capPostID + IMAGE_FILE_SUFFIX);
+          FileOutputStream out = new FileOutputStream(outFile);
+
+          image.compress(Bitmap.CompressFormat.JPEG, 90, out); //Output
+          Toast.makeText(PostListActivity.this, "截图已存为: /zSMTH/" + outFile.getName(), Toast.LENGTH_SHORT).show();
+
+          // make sure the new file can be recognized soon
+          sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(outFile)));
+        }
+      } catch (Exception e) {
+        Log.e(TAG, "saveImageToFile: " + Log.getStackTraceString(e));
+        Toast.makeText(PostListActivity.this, "保存截图失败:\n请授予应用存储权限！\n" + e.toString(), Toast.LENGTH_LONG).show();
+      }
+    } else {
+      // Do not have permissions, request them now
+      EasyPermissions.requestPermissions(this, getString(R.string.read_write_storage_rationale),
+              RC_READ_WRITE_STORAGE, perms);
     }
   }
 
