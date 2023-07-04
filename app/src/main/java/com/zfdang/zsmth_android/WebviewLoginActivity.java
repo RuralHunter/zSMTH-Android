@@ -1,6 +1,7 @@
 package com.zfdang.zsmth_android;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -51,6 +52,7 @@ public class WebviewLoginActivity extends SMTHBaseActivity {
                 view.requestFocus();
             }
         });
+        //WebView.setWebContentsDebuggingEnabled(true);
         mWebView.setWebViewClient(new WebviewLoginClient(this, username, password));
         mWebView.loadUrl(url);
     }

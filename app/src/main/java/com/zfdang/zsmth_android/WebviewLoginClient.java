@@ -2,6 +2,7 @@ package com.zfdang.zsmth_android;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.os.Build;
 import android.util.Log;
 import android.webkit.ValueCallback;
@@ -28,7 +29,7 @@ public class WebviewLoginClient extends WebViewClient {
     }
 
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
-//        Log.d(TAG, "shouldOverrideUrlLoading" + url);
+        Log.d(TAG, "shouldOverrideUrlLoading: " + url);
         if (url.startsWith("https://m.newsmth.net/index?m=")) {
             Intent resultIntent = new Intent();
             activity.setResult(Activity.RESULT_OK, resultIntent);
@@ -46,7 +47,7 @@ public class WebviewLoginClient extends WebViewClient {
     }
 
     public void onPageFinished(WebView view, String url) {
-//        Log.d(TAG, "onPageFinished" + url);
+        Log.d(TAG, "onPageFinished: " + url);
         if (url.equals("https://m.newsmth.net/index")) {
             // login page, input id and passwd automatically
             final String js = "javascript: " +
