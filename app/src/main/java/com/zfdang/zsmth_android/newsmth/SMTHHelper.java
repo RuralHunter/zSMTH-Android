@@ -141,7 +141,7 @@ public class SMTHHelper {
         }
       }
     }).cookieJar(new WebviewCookieHandler())  // https://gist.github.com/scitbiz/8cb6d8484bb20e47d241cc8e117fa705
-      .cache(cache).readTimeout(15, TimeUnit.SECONDS).connectTimeout(10, TimeUnit.SECONDS).build();
+      .readTimeout(15, TimeUnit.SECONDS).connectTimeout(10, TimeUnit.SECONDS).build();
 
     //        mRetrofit = new Retrofit.Builder()
     //                .baseUrl(SMTH_MOBILE_URL)
