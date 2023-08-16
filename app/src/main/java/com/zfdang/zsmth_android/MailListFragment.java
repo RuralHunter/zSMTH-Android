@@ -264,7 +264,12 @@ public class MailListFragment extends Fragment implements View.OnClickListener {
       Mail mail = new Mail(".END.");
       MailListContent.addItem(mail);
 
-      recyclerView.getAdapter().notifyItemChanged(MailListContent.MAILS.size() - 1);
+      recyclerView.post(new Runnable() {
+        public void run() {
+          // There is no need to use notifyDataSetChanged()
+          recyclerView.getAdapter().notifyItemInserted(MailListContent.MAILS.size() - 1);
+        }
+      });
       return;
     }
 
