@@ -3,6 +3,7 @@ package com.zfdang.zsmth_android;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -125,6 +126,7 @@ public class MailContentActivity extends AppCompatActivity {
 
       @Override public void onError(@NonNull Throwable e) {
         mPostContent.setText("读取内容失败: \n" + e.getMessage());
+        Log.e(TAG, "Error reading content: ", e);
       }
 
       @Override public void onComplete() {
