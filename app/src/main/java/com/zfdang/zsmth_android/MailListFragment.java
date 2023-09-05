@@ -172,7 +172,8 @@ public class MailListFragment extends Fragment implements View.OnClickListener {
                     MailListContent.MAILS.remove(viewHolder.getAdapterPosition());
                     recyclerView.getAdapter().notifyItemRemoved(viewHolder.getAdapterPosition());
                   }
-                  Toast.makeText(getActivity(), ajaxResponse.getAjax_msg(), Toast.LENGTH_SHORT).show();
+                  if(getActivity() != null)
+                    Toast.makeText(getActivity(), ajaxResponse.getAjax_msg(), Toast.LENGTH_SHORT).show();
                 }
 
                 @Override public void onError(@NonNull Throwable e) {
