@@ -37,12 +37,17 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import io.reactivex.Observable;
 import io.reactivex.annotations.NonNull;
@@ -122,7 +127,30 @@ public class SMTHHelper {
     int cacheSize = 250 * 1024 * 1024; // 250 MiB
     Cache cache = new Cache(httpCacheDirectory, cacheSize);
 
-    mHttpClient = new OkHttpClient().newBuilder().addInterceptor(logging).addInterceptor(new Interceptor() {
+    X509TrustManager trustAllManager=new X509TrustManager() {
+      @Override
+      public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+      }
+
+      @Override
+      public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+      }
+
+      @Override
+      public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+        return new java.security.cert.X509Certificate[]{};
+      }
+    };
+
+    SSLContext sslContext = null;
+    try {
+      sslContext = SSLContext.getInstance("SSL");
+      sslContext.init(null, new TrustManager[]{trustAllManager}, new java.security.SecureRandom());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    mHttpClient = new OkHttpClient().newBuilder().sslSocketFactory(sslContext.getSocketFactory(),trustAllManager).addInterceptor(logging).addInterceptor(new Interceptor() {
       @Override public Response intercept(Chain chain) throws IOException {
         Request request = chain.request().newBuilder().header("User-Agent", USER_AGENT).build();
         return chain.proceed(request);
