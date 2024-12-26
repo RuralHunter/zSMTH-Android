@@ -1,10 +1,12 @@
 package com.zfdang.zsmth_android;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -32,6 +34,7 @@ import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.res.ResourcesCompat;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
@@ -61,10 +64,12 @@ import com.zfdang.zsmth_android.models.MailListContent;
 import com.zfdang.zsmth_android.models.Topic;
 import com.zfdang.zsmth_android.newsmth.AjaxResponse;
 import com.zfdang.zsmth_android.newsmth.SMTHHelper;
+import com.zfdang.zsmth_android.services.KeepAliveService;
 import com.zfdang.zsmth_android.services.MaintainUserStatusWorker;
 import com.zfdang.zsmth_android.services.UserStatusReceiver;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observer;
@@ -79,6 +84,10 @@ public class MainActivity extends SMTHBaseActivity
   // used by startActivityForResult
   static final int LOGIN_ACTIVITY_REQUEST_CODE = 9527;  // The request code
   private static final String TAG = "MainActivity";
+
+  // keep aive service
+  private Intent keepAliveService;
+
   // guidance fragment: display hot topics
   // this fragment is using RecyclerView to show all hot topics
   HotTopicFragment hotTopicFragment = null;
@@ -105,7 +114,7 @@ public class MainActivity extends SMTHBaseActivity
   @Override protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
-    Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+    Toolbar toolbar = findViewById(R.id.toolbar);
     setSupportActionBar(toolbar);
 
     // how to adjust the height of toolbar
@@ -113,24 +122,24 @@ public class MainActivity extends SMTHBaseActivity
     // zsmth_actionbar_size @ dimen ==> ThemeOverlay.ActionBar @ styles ==> theme @ app_bar_main.xml
 
     // init floating action button & circular action menu
-    FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+    FloatingActionButton fab = findViewById(R.id.fab);
     initCircularActionMenu(fab);
 
-    mDrawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+    mDrawer = findViewById(R.id.drawer_layout);
     mToggle = new ActionBarDrawerToggle(this, mDrawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
     mDrawer.addDrawerListener(mToggle);
     mToggle.syncState();
 
-    mNavigationView = (NavigationView) findViewById(R.id.nav_view);
+    mNavigationView = findViewById(R.id.nav_view);
     mNavigationView.setNavigationItemSelectedListener(this);
     mNavigationView.setCheckedItem(R.id.nav_guidance);
 
     // http://stackoverflow.com/questions/33161345/android-support-v23-1-0-update-breaks-navigationview-get-find-header
     View headerView = mNavigationView.getHeaderView(0);
-    mAvatar = (WrapContentDraweeView) headerView.findViewById(R.id.nav_user_avatar);
+    mAvatar = headerView.findViewById(R.id.nav_user_avatar);
     mAvatar.setOnClickListener(this);
 
-    mUsername = (TextView) headerView.findViewById(R.id.nav_user_name);
+    mUsername = headerView.findViewById(R.id.nav_user_name);
     mUsername.setOnClickListener(this);
 
     // http://stackoverflow.com/questions/27097126/marquee-title-in-toolbar-actionbar-in-android-with-lollipop-sdk
@@ -214,9 +223,9 @@ public class MainActivity extends SMTHBaseActivity
     SubActionButton.Builder itemBuilder = new SubActionButton.Builder(this);
 
     ImageView itemIcon1 = new ImageView(this);
-    itemIcon1.setImageDrawable(getResources().getDrawable(R.drawable.ic_whatshot_white_48dp));
+    itemIcon1.setImageDrawable(ResourcesCompat.getDrawable(getResources(), R.drawable.ic_whatshot_white_48dp, null));
     SubActionButton button1 = itemBuilder.setContentView(itemIcon1)
-        .setBackgroundDrawable(getResources().getDrawable(R.drawable.navigation_button_background))
+        .setBackgroundDrawable(ResourcesCompat.getDrawable(getResources(), R.drawable.navigation_button_background, null))
         .build();
     button1.setOnClickListener(new View.OnClickListener() {
       @Override public void onClick(View v) {
@@ -227,9 +236,9 @@ public class MainActivity extends SMTHBaseActivity
     });
 
     ImageView itemIcon2 = new ImageView(this);
-    itemIcon2.setImageDrawable(getResources().getDrawable(R.drawable.ic_star_white_48dp));
+    itemIcon2.setImageDrawable(ResourcesCompat.getDrawable(getResources(), R.drawable.ic_star_white_48dp, null));
     SubActionButton button2 = itemBuilder.setContentView(itemIcon2)
-        .setBackgroundDrawable(getResources().getDrawable(R.drawable.navigation_button_background))
+        .setBackgroundDrawable(ResourcesCompat.getDrawable(getResources(), R.drawable.navigation_button_background, null))
         .build();
     button2.setOnClickListener(new View.OnClickListener() {
       @Override public void onClick(View v) {
@@ -240,9 +249,9 @@ public class MainActivity extends SMTHBaseActivity
     });
 
     ImageView itemIcon3 = new ImageView(this);
-    itemIcon3.setImageDrawable(getResources().getDrawable(R.drawable.ic_format_list_bulleted_white_48dp));
+    itemIcon3.setImageDrawable(ResourcesCompat.getDrawable(getResources(), R.drawable.ic_format_list_bulleted_white_48dp, null));
     SubActionButton button3 = itemBuilder.setContentView(itemIcon3)
-        .setBackgroundDrawable(getResources().getDrawable(R.drawable.navigation_button_background))
+        .setBackgroundDrawable(ResourcesCompat.getDrawable(getResources(), R.drawable.navigation_button_background, null))
         .build();
     button3.setOnClickListener(new View.OnClickListener() {
       @Override public void onClick(View v) {
@@ -253,9 +262,9 @@ public class MainActivity extends SMTHBaseActivity
     });
 
     ImageView itemIcon4 = new ImageView(this);
-    itemIcon4.setImageDrawable(getResources().getDrawable(R.drawable.ic_email_white_48dp));
+    itemIcon4.setImageDrawable(ResourcesCompat.getDrawable(getResources(), R.drawable.ic_email_white_48dp, null));
     SubActionButton button4 = itemBuilder.setContentView(itemIcon4)
-        .setBackgroundDrawable(getResources().getDrawable(R.drawable.navigation_button_background))
+        .setBackgroundDrawable(ResourcesCompat.getDrawable(getResources(), R.drawable.navigation_button_background, null))
         .build();
     button4.setOnClickListener(new View.OnClickListener() {
       @Override public void onClick(View v) {
@@ -297,8 +306,43 @@ public class MainActivity extends SMTHBaseActivity
           }
         }
       }
+
+      @Override
+      public void onServerFailed() {
+        stopService(keepAliveService);
+        SMTHApplication.activeUser = null;
+        SMTHApplication.displayedUserId = "guest";
+        runOnUiThread(() -> {
+          mUsername.setText(getString(R.string.nav_header_click_to_login));
+          mAvatar.setImageResource(R.drawable.ic_person_black_48dp);
+        });
+      }
     });
     SMTHApplication.mUserStatusReceiver = mReceiver;
+  }
+
+  private void init_keep_alive_service() {
+    if (keepAliveService == null)
+      keepAliveService = new Intent(this, KeepAliveService.class);
+    if (!isKeepAliveServiceRunning()) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+        startForegroundService(keepAliveService);
+      else
+        startService(keepAliveService);
+    }
+  }
+  public Boolean isKeepAliveServiceRunning() {
+    String ServiceName = KeepAliveService.class.getName();
+    ActivityManager myManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+    ArrayList<ActivityManager.RunningServiceInfo> runningService =
+            (ArrayList<ActivityManager.RunningServiceInfo>)
+                    myManager.getRunningServices(Integer.MAX_VALUE);
+    for (int i = 0; i < runningService.size(); i++) {
+      if (runningService.get(i).service.getClassName().equals(ServiceName)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void showNotification(String text) {
@@ -456,11 +500,14 @@ public class MainActivity extends SMTHBaseActivity
         mAvatar.setImageFromStringURL(faceURL);
       }
       SMTHApplication.displayedUserId = SMTHApplication.activeUser.getId();
+      init_keep_alive_service();
     } else {
       // when user is invalid, set notice to login
       mUsername.setText(getString(R.string.nav_header_click_to_login));
       mAvatar.setImageResource(R.drawable.ic_person_black_48dp);
       SMTHApplication.displayedUserId = "guest";
+      if (keepAliveService != null)
+        stopService(keepAliveService);
     }
   }
 
@@ -511,6 +558,10 @@ public class MainActivity extends SMTHBaseActivity
   }
 
   private void quitNow() {
+    // stop keep alive service
+    if (keepAliveService != null)
+      stopService(keepAliveService);
+
     // quit
     finish();
     android.os.Process.killProcess(android.os.Process.myPid());

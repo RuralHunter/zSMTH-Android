@@ -4,7 +4,7 @@ apply plugin: 'com.github.ben-manes.versions'
 buildscript {
     repositories {
         mavenCentral()
-        jcenter()
+        // jcenter()
         google()
         maven {
             url "http://mvn.mob.com/android/";
@@ -13,7 +13,7 @@ buildscript {
     }
     dependencies {
         // https://developer.android.com/studio/releases/gradle-plugin.html
-        classpath 'com.android.tools.build:gradle:7.2.1'
+        classpath 'com.android.tools.build:gradle:8.7.1'
 
         // https://github.com/ben-manes/gradle-versions-plugin
         classpath 'com.github.ben-manes:gradle-versions-plugin:+'
@@ -22,16 +22,24 @@ buildscript {
         // in the individual module build.gradle files
 
         // 注册MobSDK
-        classpath 'com.mob.sdk:MobSDK:2018.0319.1724'
+        classpath 'com.mob.sdk:MobSDK:+'
     }
 }
 
 allprojects {
     repositories {
         mavenCentral()
-        jcenter()
+        // jcenter()
         google()
         maven { url "https://jitpack.io" }
+        maven { url "https://maven.scijava.org/content/repositories/public/" }
+        maven {
+            url "https://repo1.maven.org/maven2/"
+        }
+        maven {
+            url "https://repo.spring.io/libs-milestone/"
+        }        
+
     }
 }
 
@@ -44,7 +52,7 @@ ext {
     targetSdkVersion = 29
     compileSdkVersion = 31
     // https://developer.android.com/studio/releases/build-tools
-    buildToolsVersion = '30.0.3'
+    buildToolsVersion = '34.0.0'
     FRESCO_VERSION = '1.14.2'
     RXJAVA2_VERSION = '2.2.21'
     RXANDROID2_VERSION = '2.1.1'

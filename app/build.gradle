@@ -69,11 +69,12 @@ android {
     lint {
         abortOnError false
     }
+    namespace 'com.zfdang.zsmth_android'
 }
 
 dependencies {
-    final OKHTTP_VERSION = '3.14.9'
-    final RETROFIT_VERSION = '2.9.0'
+    final OKHTTP_VERSION = '4.12.0'
+    final RETROFIT_VERSION = '2.11.0'
 
     // https://developer.android.com/studio/build/multidex
     implementation 'androidx.multidex:multidex:2.0.1'
@@ -91,7 +92,8 @@ dependencies {
     implementation "com.facebook.fresco:imagepipeline-okhttp3:$rootProject.FRESCO_VERSION"
 
     // Support library
-    implementation 'androidx.appcompat:appcompat:1.4.1'
+    implementation 'androidx.appcompat:appcompat:1.4.2'
+    implementation 'androidx.gridlayout:gridlayout:1.0.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.3'
     implementation 'com.google.android.material:material:1.5.0'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
@@ -134,7 +136,7 @@ dependencies {
     // other dependencies
     implementation 'pub.devrel:easypermissions:3.0.0'
     implementation 'com.github.maksim88:PasswordEditText:0.9'
-    implementation 'org.jsoup:jsoup:1.14.3'
+    implementation 'org.jsoup:jsoup:1.17.2'
     implementation 'com.readystatesoftware.sqliteasset:sqliteassethelper:+'
     implementation 'com.jude:swipebackhelper:3.1.2'
     implementation 'me.relex:circleindicator:2.1.6'
@@ -143,10 +145,11 @@ dependencies {
         transitive = true
     } // do not upgrade, otherwise it will cause issue
     implementation 'com.oguzdev:CircularFloatingActionMenu:1.0.2'
-    implementation 'com.wx.wheelview:wheelview:1.3.4'
-    implementation  'io.github.scwang90:refresh-layout-kernel:2.0.5'      //核心必须依赖
-    implementation  'io.github.scwang90:refresh-header-classics:2.0.5'    //经典刷新头
-    implementation  'io.github.scwang90:refresh-footer-classics:2.0.5'    //经典加载
+    // implementation 'com.wx.wheelview:wheelview:1.3.4'
+    implementation files('libs/wheelview_1.3.3.jar')
+    implementation  'io.github.scwang90:refresh-layout-kernel:2.1.0'      //核心必须依赖
+    implementation  'io.github.scwang90:refresh-header-classics:2.1.0'    //经典刷新头
+    implementation  'io.github.scwang90:refresh-footer-classics:2.1.0'    //经典加载
 
     implementation 'com.klinkerapps:link_builder:1.6.1'
     implementation 'com.esotericsoftware:kryo:4.0.2'
@@ -159,5 +162,6 @@ dependencies {
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-stdlib-jdk8
 //    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:latest.release'
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
 }
 
